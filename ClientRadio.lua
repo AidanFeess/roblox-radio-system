@@ -4,6 +4,7 @@ local Players = game:GetService('Players')
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local Teams = game:GetService('Teams')
 local TweenService = game:GetService('TweenService')
+local UIS = game:GetService('UserInputService')
 
 -- Variables // Tables
 local RadioAssets =ReplicatedStorage.Radio
@@ -19,6 +20,9 @@ local Equipped = false
 local ActiveChannel = nil
 local myChannels = {}
 local ExistingNumberchannel = nil
+local activateButton = Enum.KeyCode.Y -- button a player presses to active the radio when it is out
+local isActive = false
+local MsgRecievedAudio = RadioTool.Handle.MsgRecieved
 
 -- 	<GUI>
 local MessageTemplate = RadioAssets.MessageTemplate
@@ -38,6 +42,7 @@ local function LoadMessages(Channel)
 	-- moves messages from their respective folder to the radio ui
 	local msgFolder = RadioGui[Channel .. 'Folder']
 	ActiveChannel = Channel
+	RadioGui.RadioFrame.ChannelBG[Channel .. 'Button'].TextColor3 = Color3.fromRGB(0, 85, 0)
 	for _, MessageObject in pairs(msgFolder:GetChildren()) do
 		MessageObject.Parent = RadioGui.RadioFrame.RadioBG
 		MessageObject.Visible = true	
@@ -48,6 +53,7 @@ local function UnloadMessages()
 	-- moves messages from the radio ui to their respective folder
 	if not ActiveChannel then return end
 	local msgFolder = RadioGui[ActiveChannel .. 'Folder']
+	RadioGui.RadioFrame.ChannelBG[ActiveChannel .. 'Button'].TextColor3 = Color3.fromRGB(255, 255, 255)
 	for _, MessageObject in pairs(RadioGui.RadioFrame.RadioBG:GetChildren()) do
 		if MessageObject:IsA('TextLabel') then -- to account for ui list layout
 			MessageObject.Parent = msgFolder
@@ -114,6 +120,7 @@ end
 SetupChannel(Teams.Foundation.Name) -- setting up the basic foundation channel
 SetupChannel(LocalPlayer.Team.Name) -- setting up the player's team's channel
 table.insert(myChannels, LocalPlayer.Team.Name) 
+LoadMessages(Teams.Foundation.Name) -- start with foundation messages loaded to not confuse players
 
 RadioTool.Equipped:Connect(function()
 	RadioGui.Enabled = true
@@ -124,7 +131,7 @@ end)
 RadioTool.Unequipped:Connect(function()
 	DequipTween:Play()
 	Equipped = false
-	task.spawn(function() -- run this in parallel and check if the radio tool is equipped before setting the radio gui to disabled
+	task.spawn(function() -- run this in parallel and check if the radio tool is equipped before setting the radio gui to disabled to prevent spam clicking radio breaking the UI
 		DequipTween.Completed:Connect(function() 
 			if Equipped then return end
 			RadioGui.Enabled = false
@@ -132,9 +139,24 @@ RadioTool.Unequipped:Connect(function()
 	end)
 end)
 
+UIS.InputBegan:Connect(function(input, gPE)
+	if not gPE then -- so that typing doesn't interfere with input
+		if input.KeyCode == activateButton then
+			isActive = not isActive
+			RadioEventServer:FireServer(nil, nil, isActive)
+			if not isActive then
+				RadioGui.RadioFrame.IsActive.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+			else
+				RadioGui.RadioFrame.IsActive.BackgroundColor3 = Color3.fromRGB(85, 170, 0)
+			end
+		end
+	end
+end)
+
 RadioEventClient.OnClientEvent:Connect(function(msg, channel, sender) -- recieved a message
 	CreateMessage(channel, msg, sender)
 	-- play audio here for whenever a player gets a message
+	MsgRecievedAudio:Play()
 end)
 
 RadioGui.RadioFrame.AddNumberChannel.MouseButton1Click:Connect(function() -- creating new channels 
