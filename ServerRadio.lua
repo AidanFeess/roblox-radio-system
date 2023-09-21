@@ -48,7 +48,20 @@ end
 local function addPlayerToRadio(player, channel, ownedChannels)
 	RadioActivePlayers[player] = {
 		ActiveChannel = channel or 'Foundation',
-		PlayerChannels = ownedChannels
+		PlayerChannels = ownedChannels or {},
+		IsTransmitting = false
+	}
+end
+
+local function updatePlayerRadio(player, channel, ownedChannels, transmitting)
+	local activeChannel, playerChannels, IsTransmitting = RadioActivePlayers[player].ActiveChannel, RadioActivePlayers[player].PlayerChannels, RadioActivePlayers[player].IsTransmitting
+	if not channel then channel = activeChannel end
+	if not ownedChannels then ownedChannels = playerChannels end
+	if transmitting == nil then transmitting = IsTransmitting end
+	RadioActivePlayers[player] = {
+		ActiveChannel = channel,
+		PlayerChannels = ownedChannels,
+		IsTransmitting = transmitting
 	}
 end
 
@@ -58,22 +71,30 @@ Players.PlayerAdded:Connect(function(player)
 		char = player.CharacterAdded:Wait()
 	end
 	
+	char.Humanoid.Died:Connect(function() -- never allow a player who is dead to transmit a message
+		updatePlayerRadio(nil, nil, nil, false)
+	end)
+	
+	RadioActivePlayers[player] = {ActiveChannel = 'Foundation', PlayerChannels = {}, IsTransmitting = false} -- this will need to be removed and changed later
+	
 	player.Chatted:Connect(function(message)
 		
 		local success, errMsg = pcall(function()
-			if char and char:FindFirstChildOfClass('Tool').Name == 'Radio' then
-				if not RadioActivePlayers[player] then RadioActivePlayers[player] = {ActiveChannel = 'Foundation', PlayerChannels = {}} end
+			if not RadioActivePlayers[player] then return end
+			if char and char:FindFirstChildOfClass('Tool').Name == 'Radio' and RadioActivePlayers[player].IsTransmitting == true then
 				-- need to put a check in here to make sure the radio channel is either 1. an approved channel (i.e. a team channel) or 2. a valid number channel (i.e. 101 or 102 but not 99, 1000, or 101.1)
 				generateRadioMessage(cleanMessage(message, player.UserId), RadioActivePlayers[player].ActiveChannel, player)
 			end
 		end)
-		
+		if not success then
+			warn("Couldn't broadcast message:", errMsg)
+		end
 	end)
 	
 end)
 
-RadioEventServer.OnServerEvent:Connect(function(player, Channel, ownedChannels)
-	addPlayerToRadio(player, Channel, ownedChannels)
+RadioEventServer.OnServerEvent:Connect(function(player, Channel, ownedChannels, isTransmitting)
+	updatePlayerRadio(player, Channel, ownedChannels, isTransmitting)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
