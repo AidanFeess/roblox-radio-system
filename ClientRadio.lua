@@ -27,7 +27,7 @@ local MsgRecievedAudio = RadioTool.Handle.MsgRecieved
 -- 	<GUI>
 local MessageTemplate = RadioAssets.MessageTemplate
 local ChannelButton = RadioAssets.ChannelButtonTemplate
-local RadioGui = LocalPlayer.PlayerGui:WaitForChild('RadioGui')
+local RadioGui = RadioAssets.RadioGui:Clone(); RadioGui.Parent = LocalPlayer.PlayerGui
 RadioGui.Enabled = false
 
 local EquipTween = TweenService:Create(RadioGui.RadioFrame, tInfo, {['Position'] = UDim2.new(0, 0, 0.661, 0)})
