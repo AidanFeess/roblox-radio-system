@@ -118,8 +118,10 @@ end
 
 -- in the future set up channels after game start
 SetupChannel(Teams.Foundation.Name) -- setting up the basic foundation channel
-SetupChannel(LocalPlayer.Team.Name) -- setting up the player's team's channel
-table.insert(myChannels, LocalPlayer.Team.Name) 
+if LocalPlayer.Team ~= Teams.Foundation then
+	SetupChannel(LocalPlayer.Team.Name) -- setting up the player's team channel
+	table.insert(myChannels, LocalPlayer.Team.Name) 
+end
 LoadMessages(Teams.Foundation.Name) -- start with foundation messages loaded to not confuse players
 
 RadioTool.Equipped:Connect(function()
